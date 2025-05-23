@@ -3,7 +3,7 @@
  * Simplifies the process of migrating from the old command system
  */
 
-const logger = require('../core/NSMR-Logger');
+const logger = require('../core/Logger');
 
 class CommandRegistrationHelper {
     /**

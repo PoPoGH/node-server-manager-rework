@@ -2,7 +2,7 @@
  * Module pour récupérer les informations géographiques des adresses IP
  */
 
-const logger = require('../core/NSMR-Logger');
+const logger = require('../core/Logger');
 
 class IpInfo {
     /**

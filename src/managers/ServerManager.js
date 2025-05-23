@@ -5,7 +5,7 @@
  * Refactored from original NSMR-Server-Manager.js to use ServerInstanceService
  */
 const EventEmitter = require('events');
-const logger = require('../core/NSMR-Logger');
+const logger = require('../core/Logger');
 
 class ServerManager extends EventEmitter {
     /**

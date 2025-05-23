@@ -4,7 +4,7 @@
  */
 const EventEmitter = require('events');
 const crypto = require('crypto');
-const logger = require('../NSMR-Logger');
+const logger = require('../Logger');
 const PlayerModel = require('../../models/Player');
 
 // System user for administrative actions

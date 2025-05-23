@@ -3,7 +3,7 @@
  */
 const jwt = require('jsonwebtoken');
 const config = require('../../config-loader');
-const logger = require('../../core/NSMR-Logger');
+const logger = require('../../core/Logger');
 
 /**
  * Middleware to check if user is authenticated

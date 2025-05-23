@@ -5,7 +5,7 @@
 const dgram = require('dgram');
 const path = require('path');
 const Mutex = require('../utils/Mutex');
-const logger = require('../core/NSMR-Logger');
+const logger = require('../core/Logger');
 
 // Configure debug with a filter to reduce excessive logging
 const debugModule = require('debug');

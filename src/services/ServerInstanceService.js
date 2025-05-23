@@ -4,7 +4,7 @@
  */
 const EventEmitter = require('events');
 const RconService = require('./RconService');
-const logger = require('../core/NSMR-Logger');
+const logger = require('../core/Logger');
 const ActivePlayer = require('../core/Entity/ActivePlayer');
 const ServerModel = require('../models/Server');
 

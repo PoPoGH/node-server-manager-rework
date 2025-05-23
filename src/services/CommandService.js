@@ -3,7 +3,7 @@
  */
 const path = require('path');
 const fs = require('fs');
-const logger = require('../core/NSMR-Logger');
+const logger = require('../core/Logger');
 
 class CommandManager {
     /**
