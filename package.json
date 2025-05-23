@@ -2,21 +2,16 @@
   "name": "node-server-manager",
   "version": "1.0.0",
   "description": "Gestionnaire de serveurs Plutonium modernisé et restructuré",
-  "main": "src/core/index.js",
+  "main": "src/app.js",
   "scripts": {
-    "start": "node src/core/index.js",
-    "start:api": "node src/core/api-server.js",
-    "start:logs": "node src/core/log-server.js",
-    "start:minimal": "node src/core/minimal-server.js",
-    "dev": "nodemon src/core/index.js",
-    "dev:api": "nodemon src/core/api-server.js",
+    "start": "node src/app.js",
+    "dev:full": "export NODE_ENV=development && concurrently \"npm run dev:api\" \"npm run dev:web\"",
+    "dev:api": "export NODE_ENV=development && nodemon src/app.js",
     "dev:web": "cd src/web && npm run dev",
     "build:web": "cd src/web && npm run build",
     "install:web": "cd src/web && npm install",
     "backup": "node scripts/maintenance/backup-db.js",
     "restore": "node scripts/maintenance/restore-db.js",
-    "diagnostic": "node scripts/diagnostic/run-diagnostics.js",
-    "test": "jest",
     "setup": "npm install && npm run install:web"
   },
   "repository": {
@@ -56,6 +51,7 @@
   "devDependencies": {
     "axios": "^1.9.0",
     "colors": "^1.4.0",
+    "concurrently": "^9.1.2",
     "debug": "^4.4.0",
     "jest": "^29.7.0",
     "nodemon": "^3.0.2"

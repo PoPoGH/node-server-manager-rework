@@ -45,6 +45,13 @@ class AppController {
             console.log('Controllers initialized');
             
             // Initialize API after controllers are ready
+            const loggerForConfig = this.serviceFactory.get('logService') || console;
+            try {
+                loggerForConfig.info(`[AppController.js] Config for API check: this.config.api = ${JSON.stringify(this.config.api)}, this.config.api.enabled = ${this.config.api?.enabled}`);
+            } catch (e) {
+                loggerForConfig.info(`[AppController.js] Error stringifying this.config.api: ${e.message}`);
+                loggerForConfig.info(`[AppController.js] Config for API check: this.config.api exists = ${!!this.config.api}, this.config.api.enabled = ${this.config.api?.enabled}`);
+            }
             if (this.config.api?.enabled !== false) {
                 await this.initializeAPI();
             }
@@ -352,22 +359,41 @@ class AppController {
                 logService.info('Server manager started');
             }
             
-            // Start API server if configured
-            if (this.config.api && this.config.api.enabled) {
-                // Dynamic import for API server
-                const ApiServer = require('../api/NSMR-Api-Server');
-                this.apiServer = new ApiServer(this.config.api, this.services, this.controllers);
-                await this.apiServer.start();
-                logService.info(`API server started on port ${this.config.api.port}`);
-            }
               // Start web server if configured
-            if (this.config.web && this.config.web.enabled) {
-                // Dynamic import for web server (ESM module)
-                const WebServerModule = await import('../web/NSMR-Web-Server.js');
-                const WebServer = WebServerModule.default;
-                this.webServer = new WebServer(this.config.web, this.services, this.controllers);
-                await this.webServer.start();
-                logService.info(`Web server started on port ${this.config.web.port}`);
+            if (this.config.web && this.config.web.enabled !== false) { // Vérifier explicitement false
+                if (this.config.env === 'development') {
+                    // En mode développement, on lance Vite directement
+                    const { spawn } = require('child_process');
+                    const viteDevProcess = spawn('npm', ['run', 'dev'], {
+                        cwd: path.join(__dirname, '../web'),
+                        stdio: 'pipe',
+                        shell: true
+                    });
+                    
+                    viteDevProcess.stdout.on('data', (data) => {
+                        logService.info(`Vite dev server: ${data.toString().trim()}`);
+                    });
+                    
+                    viteDevProcess.stderr.on('data', (data) => {
+                        logService.error(`Vite dev server error: ${data.toString().trim()}`);
+                    });
+                    
+                    viteDevProcess.on('close', (code) => {
+                        logService.warn(`Vite dev server process exited with code ${code}`);
+                    });
+                    
+                    // Stocker le processus pour l'arrêter proprement lors de l'arrêt de l'application
+                    this.viteDevProcess = viteDevProcess;
+                    
+                    logService.info(`Web development server started on port 8080`);
+                } else {
+                    // Mode production: utiliser le serveur web normal
+                    const WebServerModule = await import('../web/Web-Server.js');
+                    const WebServer = WebServerModule.default;
+                    this.webServer = new WebServer(this.config.web, this.services, this.controllers);
+                    await this.webServer.start();
+                    logService.info(`Web server started on port ${this.config.web.port}`);
+                }
             }
             
             logService.info('Application started successfully');
@@ -543,7 +569,8 @@ class AppController {
             const helmet = require('helmet');
             const morgan = require('morgan');
             const rateLimit = require('express-rate-limit');
-            
+            const { Server } = require('socket.io'); // Import Socket.IO Server
+
             // Create Express app
             const apiApp = express();
               // Basic middleware
@@ -640,10 +667,67 @@ class AppController {
             
             // Start API server
             const port = this.config.api?.port || 3001;
+            const logger = this.services.logService || console; // Ensure logger is defined
+            
             this.apiServer = apiApp.listen(port, () => {
-                const logger = this.services.logService || console;
                 logger.info(`API server listening on port ${port}`);
             });
+
+            // Initialize Socket.IO Server
+            this.io = new Server(this.apiServer, {
+                path: "/socket.io", // Must match client and proxy configuration
+                cors: {
+                    origin: (origin, callback) => {
+                        // Allow requests with no origin (like mobile apps or curl requests)
+                        // In development, or if origin is in allowedOrigins list
+                        const devMode = this.config.env === 'development';
+                        const clientHost = this.config.web?.hostname || 'localhost';
+                        const clientPort = this.config.web?.port || 8080; // Default from config
+                        const vitePort = 8085; // Vite dev server port
+
+                        const currentAllowedOrigins = [
+                            `http://${clientHost}:${clientPort}`, // Production frontend
+                            `http://localhost:${clientPort}`, // Production frontend (localhost access)
+                            `http://localhost:${vitePort}`,   // Vite dev server
+                            `http://127.0.0.1:${vitePort}`, // Vite dev server (alternative localhost)
+                            // Add the backend's own address if direct WebSocket connection tests are needed
+                            `http://${this.config.api?.hostname || 'localhost'}:${port}`,
+                            ...(this.config.api?.allowedOrigins || [])
+                        ];
+                        
+                        if (devMode) {
+                             // In dev mode, be more permissive or log the origin for debugging
+                            logger.debug(`Socket.IO CORS check in dev mode. Origin: ${origin}`);
+                            if (!origin || currentAllowedOrigins.includes(origin) || currentAllowedOrigins.includes('*')) {
+                                return callback(null, true);
+                            }
+                             // For dev, you might want to allow all for simplicity, or ensure your specific dev origin is listed
+                             // return callback(null, true); // Temporarily allow all in dev for testing
+                        }
+
+                        if (!origin || currentAllowedOrigins.indexOf(origin) !== -1 || currentAllowedOrigins.includes('*')) {
+                            callback(null, true);
+                        } else {
+                            logger.warn(`Socket.IO CORS blocked request from origin: ${origin}. Allowed: ${currentAllowedOrigins.join(', ')}`);
+                            callback(new Error('Not allowed by Socket.IO CORS'));
+                        }
+                    },
+                    methods: ["GET", "POST"],
+                    credentials: true
+                }
+            });
+
+            this.io.on('connection', (socket) => {
+                logger.info('New client connected via Socket.IO. ID: ' + socket.id);
+                socket.on('disconnect', () => {
+                    logger.info('Client disconnected from Socket.IO. ID: ' + socket.id);
+                });
+            });
+            
+            // Make io instance available to other services if needed
+            this.serviceFactory.register('io', this.io);
+            logger.info('Socket.IO server initialized and attached to API server.');
+
         } catch (error) {
             const logger = this.services.logService || console;
             logger.error('Failed to initialize API:', error);
@@ -873,8 +957,8 @@ class AppController {
                 throw new Error('Web directory not found');
             }
             
-            if (!fs.existsSync(path.join(webDir, 'NSMR-Web-Server.js'))) {
-                logService.error('NSMR-Web-Server.js not found in web directory');
+            if (!fs.existsSync(path.join(webDir, 'Web-Server.js'))) {
+                logService.error('Web-Server.js not found in web directory');
                 throw new Error('Web server module not found');
             }
             

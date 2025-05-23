@@ -39,6 +39,9 @@ function loadConfig() {
 
 // Fusionner avec les variables d'environnement
 function mergeEnvironmentVariables(config) {
+    // Définir l'environnement à partir de NODE_ENV
+    config.env = process.env.NODE_ENV || 'production';
+    
     // Remplacer les valeurs par les variables d'environnement si elles existent
     if (process.env.API_PORT) config.api.port = parseInt(process.env.API_PORT);
     if (process.env.API_SECRET) config.api.secret = process.env.API_SECRET;

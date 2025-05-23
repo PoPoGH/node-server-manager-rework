@@ -3,7 +3,7 @@
  */
 
 // Configuration de base
-const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
+const API_BASE_URL = '/api'; // Force l'utilisation du proxy
 
 // Fonction pour récupérer l'URL de base de l'API
 const getBaseUrl = () => API_BASE_URL;

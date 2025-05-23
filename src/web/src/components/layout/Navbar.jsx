@@ -1,4 +1,8 @@
-import { Box, Flex, IconButton, Heading, Spacer, Button, useColorMode, Menu, MenuButton, MenuList, MenuItem, Avatar, Badge, Text, Image, HStack, Icon } from '@chakra-ui/react';
+import { 
+  Box, Flex, IconButton, Heading, Spacer, Button, Badge, Text, Image, HStack, Icon,
+  useColorMode
+} from '@chakra-ui/react';
+import { Menu, MenuButton, MenuList, MenuItem } from '@chakra-ui/react';
 import { FaBars, FaUser, FaMoon, FaSun, FaSignOutAlt, FaCog, FaUserCog, FaGamepad, FaServer } from 'react-icons/fa';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';

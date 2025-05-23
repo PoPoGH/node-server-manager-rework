@@ -1,4 +1,4 @@
-import { Box, VStack, Link, Icon, Text, Divider, Flex, Badge, Tooltip } from '@chakra-ui/react';
+import { Box, VStack, Link, Text, Flex, Badge, Tooltip, Divider, Icon } from '@chakra-ui/react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { FaHome, FaServer, FaUsers, FaChartBar, FaBrain, FaExclamation, FaCog, FaGamepad, FaList } from 'react-icons/fa';
 import { MdSecurity } from 'react-icons/md';

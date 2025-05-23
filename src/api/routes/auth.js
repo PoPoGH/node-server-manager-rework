@@ -14,15 +14,44 @@ module.exports = function(serverManager) {
     // Configuration
     const config = require('../../config-loader');
 
-    // Service initialization
+    // Service initialization - Use lazy loading to avoid startup errors
     const serviceFactory = ServiceFactory.getInstance();
-    const userService = serviceFactory.get('userService');
-    const logService = serviceFactory.get('logService');
-    const authService = serviceFactory.get('authService');    /**
+    
+    // Helper function to get services safely
+    const getService = (serviceName) => {
+        try {
+            return serviceFactory.get(serviceName);
+        } catch (error) {
+            console.warn(`Service '${serviceName}' not available: ${error.message}`);
+            return null;
+        }
+    };
+    
+    // Helper function to get required services with error handling
+    const getRequiredServices = () => {
+        const userService = getService('userService');
+        const logService = getService('logService') || console;
+        const authService = getService('authService');
+        
+        if (!userService || !authService) {
+            const errorMsg = 'Authentication services (userService, authService) are not available. Database connection may have failed.';
+            logService.error(errorMsg);
+            return { error: errorMsg, logService };
+        }
+        
+        return { userService, logService, authService };
+    };    /**
      * Authentication middleware to verify the JWT token
      */
     const authenticateToken = async (req, res, next) => {
         try {
+            const services = getRequiredServices();
+            if (services.error) {
+                return res.status(503).json({ success: false, error: services.error });
+            }
+            
+            const { userService, logService, authService } = services;
+            
             const authHeader = req.headers['authorization'];
             logService.debug(`Auth headers: ${JSON.stringify(req.headers)}`);
             logService.debug(`Auth header: ${authHeader}`);
@@ -52,6 +81,7 @@ module.exports = function(serverManager) {
                 return res.status(403).json({ success: false, error: 'Token verification error' });
             }
         } catch (error) {
+            const logService = getService('logService') || console;
             logService.error(`Authentication error: ${error.message}`);
             return res.status(403).json({ success: false, error: 'Authentication error' });
         }
@@ -63,6 +93,13 @@ module.exports = function(serverManager) {
      */
     router.post('/login', async (req, res) => {
         try {
+            const services = getRequiredServices();
+            if (services.error) {
+                return res.status(503).json({ success: false, error: services.error });
+            }
+            
+            const { userService, logService, authService } = services;
+            
             const { username, password } = req.body;
             logService.info(`Login attempt received for user: ${username || 'not specified'}`);
             
@@ -90,6 +127,7 @@ module.exports = function(serverManager) {
                 user: authResult.user
             });
         } catch (error) {
+            const logService = getService('logService') || console;
             logService.error(`Login error: ${error.message}`);
             res.status(500).json({ success: false, error: error.message });
         }
@@ -101,6 +139,13 @@ module.exports = function(serverManager) {
      */
     router.get('/verify', authenticateToken, async (req, res) => {
         try {
+            const services = getRequiredServices();
+            if (services.error) {
+                return res.status(503).json({ success: false, error: services.error });
+            }
+            
+            const { userService, logService } = services;
+            
             // Get complete user information from the database
             const user = await userService.getUserById(req.user.id);
             
@@ -114,6 +159,7 @@ module.exports = function(serverManager) {
                 user: userService.sanitizeUser(user)
             });
         } catch (error) {
+            const logService = getService('logService') || console;
             logService.error(`Token verification error: ${error.message}`);
             res.status(500).json({ success: false, error: error.message });
         }
@@ -125,6 +171,13 @@ module.exports = function(serverManager) {
      */
     router.get('/validate', authenticateToken, async (req, res) => {
         try {
+            const services = getRequiredServices();
+            if (services.error) {
+                return res.status(503).json({ success: false, error: services.error });
+            }
+            
+            const { userService, logService, authService } = services;
+            
             // Get complete user information from database
             const user = await userService.getUserById(req.user.id);
             
@@ -156,6 +209,7 @@ module.exports = function(serverManager) {
                 }
             });
         } catch (error) {
+            const logService = getService('logService') || console;
             logService.error(`Token validation error: ${error.message}`);
             res.status(500).json({ success: false, error: error.message });
         }
@@ -167,6 +221,13 @@ module.exports = function(serverManager) {
      */
     router.post('/change-password', authenticateToken, async (req, res) => {
         try {
+            const services = getRequiredServices();
+            if (services.error) {
+                return res.status(503).json({ success: false, error: services.error });
+            }
+            
+            const { userService, logService } = services;
+            
             const { currentPassword, newPassword } = req.body;
             
             if (!currentPassword || !newPassword) {
@@ -181,6 +242,7 @@ module.exports = function(serverManager) {
             
             res.json({ success: true, message: 'Password changed successfully' });
         } catch (error) {
+            const logService = getService('logService') || console;
             logService.error(`Password change error: ${error.message}`);
             res.status(500).json({ success: false, error: error.message });
         }
@@ -192,6 +254,13 @@ module.exports = function(serverManager) {
      */
     router.post('/update-profile', authenticateToken, async (req, res) => {
         try {
+            const services = getRequiredServices();
+            if (services.error) {
+                return res.status(503).json({ success: false, error: services.error });
+            }
+            
+            const { userService, logService, authService } = services;
+            
             const { currentPassword, newPassword, email, gameUsername, gameToken, hasCompletedSetup } = req.body;
             
             if (!currentPassword) {
@@ -222,6 +291,7 @@ module.exports = function(serverManager) {
                 user: userService.sanitizeUser(updateResult.user)
             });
         } catch (error) {
+            const logService = getService('logService') || console;
             logService.error(`Profile update error: ${error.message}`);
             res.status(500).json({ success: false, error: error.message });
         }
@@ -233,6 +303,13 @@ module.exports = function(serverManager) {
      */
     router.post('/apply-game-token', authenticateToken, async (req, res) => {
         try {
+            const services = getRequiredServices();
+            if (services.error) {
+                return res.status(503).json({ success: false, error: services.error });
+            }
+            
+            const { userService, logService, authService } = services;
+            
             logService.debug(`API: Game token application request received - URL: ${req.originalUrl}`);
             const { gameToken } = req.body;
             
@@ -262,6 +339,7 @@ module.exports = function(serverManager) {
                 user: userService.sanitizeUser(result.user)
             });
         } catch (error) {
+            const logService = getService('logService') || console;
             logService.error(`Game token application error: ${error.message}`);
             res.status(500).json({ success: false, error: error.message });
         }
@@ -273,6 +351,13 @@ module.exports = function(serverManager) {
      */
     router.post('/generate-game-token', authenticateToken, async (req, res) => {
         try {
+            const services = getRequiredServices();
+            if (services.error) {
+                return res.status(503).json({ success: false, error: services.error });
+            }
+            
+            const { userService, logService } = services;
+            
             const result = await userService.generateGameToken(req.user.id);
             
             res.json({
@@ -284,6 +369,7 @@ module.exports = function(serverManager) {
                     'Game token generated successfully'
             });
         } catch (error) {
+            const logService = getService('logService') || console;
             logService.error(`Game token generation error: ${error.message}`);
             res.status(500).json({ success: false, error: error.message });
         }
@@ -295,6 +381,13 @@ module.exports = function(serverManager) {
      */
     router.post('/update-setup-step', authenticateToken, async (req, res) => {
         try {
+            const services = getRequiredServices();
+            if (services.error) {
+                return res.status(503).json({ success: false, error: services.error });
+            }
+            
+            const { userService, logService, authService } = services;
+            
             const { setupStep } = req.body;
             
             if (setupStep === undefined) {
@@ -323,17 +416,23 @@ module.exports = function(serverManager) {
                 user: userService.sanitizeUser(result.user)
             });
         } catch (error) {
+            const logService = getService('logService') || console;
             logService.error(`Setup step update error: ${error.message}`);
             res.status(500).json({ success: false, error: error.message });
         }
-    });
-
-    /**
+    });    /**
      * @route POST /api/auth/check-token-status
      * @desc Check if a game token has been used
      */
     router.post('/check-token-status', authenticateToken, async (req, res) => {
         try {
+            const services = getRequiredServices();
+            if (services.error) {
+                return res.status(503).json({ success: false, error: services.error });
+            }
+            
+            const { userService, logService } = services;
+            
             const { gameToken } = req.body;
             logService.debug(`Checking token status: ${gameToken}`);
             
@@ -341,7 +440,7 @@ module.exports = function(serverManager) {
                 logService.warn('Verification attempt without providing a token');
                 return res.status(400).json({ success: false, error: 'Game token required' });
             }
-            
+
             // Check token status in UserService
             const result = await userService.checkGameTokenStatus(req.user.id, gameToken);
             
@@ -355,6 +454,7 @@ module.exports = function(serverManager) {
                 message: result.message
             });
         } catch (error) {
+            const logService = getService('logService') || console;
             logService.error(`Token status check error: ${error.message}`);
             res.status(500).json({ success: false, error: error.message });
         }

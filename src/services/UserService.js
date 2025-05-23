@@ -33,6 +33,14 @@ class UserService {
      * @returns {Promise<boolean>} True if match
      */
     async comparePassword(password, hash) {
+        this.logger.debug(`UserService.comparePassword: password provided: ${!!password}, hash provided: ${!!hash}`);
+        this.logger.debug(`UserService.comparePassword: password length: ${password?.length || 0}, hash length: ${hash?.length || 0}`);
+        
+        if (!password || !hash) {
+            this.logger.error(`UserService.comparePassword: Missing password or hash - password: ${!!password}, hash: ${!!hash}`);
+            throw new Error('Password and hash are required for comparison');
+        }
+        
         return await bcrypt.compare(password, hash);
     }
 
@@ -99,11 +107,33 @@ class UserService {
      */
     async getUserByUsername(username) {
         try {
+            this.logger.debug(`UserService.getUserByUsername: Looking for user: ${username}`);
+            this.logger.debug(`UserService.getUserByUsername: Database connection type: ${typeof this.db}`);
+            this.logger.debug(`UserService.getUserByUsername: Database connection defined: ${!!this.db}`);
+            
             const query = 'SELECT * FROM users WHERE username = ?';
+            this.logger.debug(`UserService.getUserByUsername: Executing query: ${query} with params: [${username}]`);
+            
             const user = await this.db.get(query, [username]);
+            
+            this.logger.debug(`UserService.getUserByUsername: Raw user result:`, user);
+            this.logger.debug(`UserService.getUserByUsername: User found:`, { 
+                found: !!user, 
+                userId: user?.id,
+                username: user?.username,
+                hasPassword: !!user?.password,
+                passwordLength: user?.password?.length || 0,
+                passwordPreview: user?.password ? user.password.substring(0, 10) + '...' : 'NO_PASSWORD'
+            });
+            
             return user || null;
         } catch (error) {
             this.logger.error('Error getting user by username:', error);
+            this.logger.error('Error details:', { 
+                name: error.name, 
+                message: error.message, 
+                stack: error.stack 
+            });
             return null;
         }
     }

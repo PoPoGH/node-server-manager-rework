@@ -2,11 +2,13 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Box, Heading, Text, Badge, Button, Flex, Spacer, Icon, Tabs, TabList,
-  Tab, TabPanels, TabPanel, SimpleGrid, Card, CardBody, CardHeader,
-  Divider, List, ListItem, Code, Stat, StatLabel, StatNumber, StatHelpText,
-  Accordion, AccordionItem, AccordionButton, AccordionPanel, AccordionIcon,
-  useToast, Spinner, Grid, GridItem, HStack, Select, Textarea
+  Tab, TabPanels, TabPanel, SimpleGrid, List, ListItem, Code,
+  Stat, StatLabel, StatNumber, StatHelpText, Spinner, Grid, GridItem, HStack,
+  Card, CardBody, CardHeader, Select, useToast
 } from '@chakra-ui/react';
+import { Accordion, AccordionItem, AccordionButton, AccordionPanel, AccordionIcon } from '@chakra-ui/react';
+import { Divider } from '@chakra-ui/react';
+import { Textarea } from '@chakra-ui/react';
 import { 
   FaServer, FaArrowLeft, FaUsers, FaUserCog, FaTerminal,
   FaCog, FaPlay, FaStop, FaRedo, FaHistory, FaFileCode

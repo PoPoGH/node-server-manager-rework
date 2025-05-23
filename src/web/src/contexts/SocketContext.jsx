@@ -23,8 +23,8 @@ export const SocketProvider = ({ socket, children }) => {
       // Get auth token for socket authentication
       const token = localStorage.getItem('nsm_token') || localStorage.getItem('auth_token');
       
-      // Use the API URL from environment or default to current origin
-      const socketUrl = import.meta.env.VITE_API_URL || '';
+      // Force connection to Vite dev server port
+      const socketUrl = 'http://localhost:8085'; 
       
       // Socket.IO connection options
       const socketOptions = {

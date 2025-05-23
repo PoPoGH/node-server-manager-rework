@@ -30,11 +30,24 @@ class AuthService {
             // Get user by username
             const user = await this.userService.getUserByUsername(username);
             
+            this.logger.debug(`AuthService.authenticate: User found for ${username}:`, { 
+                userId: user?.id, 
+                hasPassword: !!user?.password,
+                passwordLength: user?.password?.length || 0
+            });
+            
             if (!user) {
                 return { success: false, error: 'User not found' };
             }
 
+            // Check if password hash exists
+            if (!user.password) {
+                this.logger.error(`AuthService.authenticate: No password hash found for user ${username}`);
+                return { success: false, error: 'Invalid user data' };
+            }
+
             // Compare password
+            this.logger.debug(`AuthService.authenticate: Comparing password for ${username}`);
             const isMatch = await this.userService.comparePassword(password, user.password);
             
             if (!isMatch) {

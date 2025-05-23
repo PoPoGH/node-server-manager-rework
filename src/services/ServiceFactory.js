@@ -125,23 +125,10 @@ class ServiceFactory {
                 this.register('logService', new LogService());
             }
 
-            // Register user service if it doesn't exist
-            if (!this.services.userService) {
-                const UserService = require('./UserService');
-                this.register('userService', new UserService(
-                    this.services.dbConnection,
-                    this.services.logService
-                ));
-            }
-
-            // Register auth service if it doesn't exist
-            if (!this.services.authService) {
-                const AuthService = require('./AuthService');
-                this.register('authService', new AuthService(
-                    this.services.userService,
-                    this.services.logService
-                ));
-            }
+            // UserService and AuthService will be registered in app.js
+            // after dbConnection is confirmed to be available.
+            // Removing their auto-registration here prevents them from
+            // being initialized with an undefined dbConnection.
 
             // Register config service if it doesn't exist
             if (!this.services.configService) {

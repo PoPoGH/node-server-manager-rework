@@ -49,6 +49,9 @@ class DatabaseService {
                         // Create tables if they don't exist
                         await this.initializeTables();
                         
+                        // Initialize default admin user
+                        await this.initializeDefaultAdmin();
+                        
                         this.isInitialized = true;
                         this.logger.info('Database initialized successfully');
                         resolve(true);
@@ -266,6 +269,46 @@ class DatabaseService {
             this.logger.info('Database tables created successfully');
         } catch (error) {
             this.logger.error('Error creating database tables:', error);
+            throw error;
+        }
+    }
+    
+    /**
+     * Initialize default admin user if it doesn't exist
+     * @private
+     * @returns {Promise<void>}
+     */
+    async initializeDefaultAdmin() {
+        try {
+            // Check if admin user already exists
+            const existingAdmin = await this.get('SELECT * FROM users WHERE username = ?', ['admin']);
+            
+            if (!existingAdmin) {
+                this.logger.info('Creating default admin user...');
+                
+                // Generate UUID and hash default password
+                const { v4: uuidv4 } = require('uuid');
+                const bcrypt = require('bcrypt');
+                
+                const adminId = uuidv4();
+                const defaultPassword = 'admin';
+                const hashedPassword = await bcrypt.hash(defaultPassword, 10);
+                
+                // Insert default admin user
+                const query = `
+                    INSERT INTO users (id, username, password, role, created_at, has_completed_setup, setup_step)
+                    VALUES (?, ?, ?, ?, datetime('now'), 0, 1)
+                `;
+                
+                await this.run(query, [adminId, 'admin', hashedPassword, 'admin']);
+                
+                this.logger.info('Default admin user created successfully (username: admin, password: admin)');
+                this.logger.warn('SECURITY WARNING: Please change the default admin password during initial setup!');
+            } else {
+                this.logger.debug('Admin user already exists, skipping default user creation');
+            }
+        } catch (error) {
+            this.logger.error('Error creating default admin user:', error);
             throw error;
         }
     }

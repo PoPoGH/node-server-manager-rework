@@ -49,32 +49,68 @@ process.on('unhandledRejection', (reason, promise) => {
  */
 async function main() {
     try {
+        console.log('[app.js] Starting Node Server Manager...'); // Direct console log
         logService.info(`Starting Node Server Manager (${new Date().toISOString()})`);
         
         // Initialize database
+        console.log('[app.js] Initializing database...'); // Direct console log
         logService.info('Initializing database...');
-        const { dbService, connection } = await initDatabase();
-        
-        // Create service factory and register core services
-        const serviceFactory = new ServiceFactory();
-        serviceFactory.register('logService', logService);
-        serviceFactory.register('configService', { config }); // Simple config service
-        serviceFactory.register('dbService', dbService);
-        
-        if (connection) {
-            serviceFactory.register('dbConnection', connection);
+        let dbService, connection;
+        try {
+            const DatabaseService = require('./services/DatabaseService');
+            const tempDbService = new DatabaseService(config.db, logService);
+            await tempDbService.initialize();
+            dbService = tempDbService;
+            connection = tempDbService.getConnection();
+            console.log(`[app.js] Database initialization complete. dbService defined: ${!!dbService}, connection defined: ${!!connection}`); // Direct console log
+        } catch (error) {
+            logService.error('Failed to initialize database service in main:', error);
+            console.error('[app.js] Database initialization failed in main:', error); // Direct console log
+            // dbService and connection will remain undefined or null
         }
         
+        // Create service factory and register core services - Use singleton instance
+        const serviceFactory = ServiceFactory.getInstance();
+        serviceFactory.register('logService', logService);
+        serviceFactory.register('configService', { config }); // Simple config service
+        
+        if (dbService) {
+            serviceFactory.register('dbService', dbService);
+        }
+        // Enregistre la connexion (peut être null ou undefined si l'initialisation a échoué)
+        serviceFactory.register('dbConnection', connection); 
+        
+        console.log(`[app.js] Before UserService/AuthService registration: dbService defined: ${!!dbService}, connection defined: ${!!connection}`); // Direct console log
+
         // Créer des services essentiels
         if (dbService && connection) {
             const UserService = require('./services/UserService');
             const AuthService = require('./services/AuthService');
             
+            console.log('[app.js] Database connection available. Registering UserService and AuthService.'); // Direct console log
+            logService.info('Database connection available. Registering UserService and AuthService.');
             serviceFactory.register('userService', new UserService(connection, logService));
             serviceFactory.register('authService', new AuthService(
                 serviceFactory.get('userService'),
                 logService
             ));
+            console.log('[app.js] UserService and AuthService registered.'); // Direct console log
+        } else {
+            console.warn('[app.js] Database connection NOT available or dbService is missing.'); // Direct console log
+            logService.warn('Database connection not available (connection is falsy or dbService missing).');
+            
+            const apiEnabled = config.api?.enabled;
+            console.log(`[app.js] In DB connection failed else block: config.api?.enabled = ${apiEnabled}`); // Direct console log
+            logService.info(`[app.js] Config for API check: config.api = ${JSON.stringify(config.api)}, config.api.enabled = ${apiEnabled}`);
+
+            if (apiEnabled !== false) {
+                console.error('[app.js] API is enabled, but DB connection failed. Throwing error.'); // Direct console log
+                logService.error('API is enabled, but critical database-dependent services (UserService, AuthService) cannot be registered. Application cannot continue safely.');
+                throw new Error('Database connection is required for API functionality but is not available.');
+            } else {
+                console.info('[app.js] Database not available, but API is disabled. Proceeding without UserService and AuthService.'); // Direct console log
+                logService.info('Database not available, but API is disabled or not critically dependent on these services. Proceeding without UserService and AuthService.');
+            }
         }
         
         // Create and initialize app controller with service factory
